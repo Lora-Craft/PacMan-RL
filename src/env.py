@@ -1,5 +1,11 @@
 import retro
-from torchrl.envs import GymWrapper, TransformedEnv
+from torchrl.envs import (
+    GymWrapper, 
+    TransformedEnv,
+    DoubleToFloat,
+    ObservationNorm,
+    StepCounter,
+)
 from torchrl.envs.transforms import Resize, Compose, ToTensorImage
 from torchvision.transforms import InterpolationMode
 import torch as t
@@ -15,6 +21,10 @@ PACMAN_ACTIONS = [
 ]
 
 def get_torch_compatible_actions(actions, num_actions=5):
+    """
+    Torchrl expects actions to be one-hot encoded
+    Function converts integer actions into one-hot matrix
+    """
     return t.nn.functional.one_hot(actions, num_classes=num_actions).float()
 
 
@@ -32,7 +42,10 @@ def make_env(
     
     transformed_env = TransformedEnv(wrapped_env, Compose([
         ToTensorImage(),
-        Resize(84, 84, interpolation=InterpolationMode.NEAREST)
+        Resize(84, 84, interpolation=InterpolationMode.NEAREST),
+        #ObservationNorm(in_keys=["observation"]),
+        #DoubleToFloat(),
+        #StepCounter(),
     ]))
 
     return transformed_env
@@ -52,39 +65,40 @@ def make_env(
 # print("ACTION SPEC:", test.action_spec)
 #print(tensordict)
 
-#small test to for model in environment
-test = make_env()
-model = PMAlpha(num_actions=test.action_space.n)
-model.eval()
-tensordict = test.reset()
+if __name__ == "__main__":
+    #small test to for model in environment
+    test = make_env()
+    model = PMAlpha(num_actions=test.action_space.n)
+    model.eval()
+    tensordict = test.reset()
 
-while True:
-    #action = test.action_space.sample()
-    #tensordict = test.step(tensordict.set("action", action))
+    while True:
+        #action = test.action_space.sample()
+        #tensordict = test.step(tensordict.set("action", action))
 
-    obs = tensordict["pixels"]
+        obs = tensordict["pixels"]
+        
+        obs_batch = obs.unsqueeze(0) # adds batch dimensions for model
+        #print(obs)
+        with t.no_grad():
+            logits, value = model(obs_batch)
 
-    obs_batch = obs.unsqueeze(0) # adds batch dimensions for model
+        a_probs = t.softmax(logits, dim=1)
+        action = t.multinomial(a_probs, 1)
 
-    with t.no_grad():
-        logits, value = model(obs_batch)
-    
-    a_probs = t.softmax(logits, dim=1)
-    action = t.multinomial(a_probs, 1)
-
-    tensordict = test.step(tensordict.set("action", get_torch_compatible_actions(action, num_actions=5)))
-    reward = tensordict["next", "reward"]
-    term = tensordict["next", "terminated"]
-    trunc = tensordict["next", "truncated"]
+        tensordict = test.step(tensordict.set("action", get_torch_compatible_actions(action, num_actions=5)))
+        reward = tensordict["next", "reward"]
+        term = tensordict["next", "terminated"]
+        trunc = tensordict["next", "truncated"]
 
 
-    print(f"Action: {action}, Reward: {reward.item():.2f}, Value: {value.item():.4f}")
+        #print(f"Action: {action}, Reward: {reward.item():.2f}, Value: {value.item():.4f}")
 
-    if term or trunc:
-        print("EPISODE ENDED")
-        #print(obs, reward, term, trunc)
-        #print(tensordict)
-        test.reset()
+        if term or trunc:
+            print("EPISODE ENDED")
+            print(obs, reward, term, trunc)
+            print(tensordict)
+            test.reset()
     
 
     

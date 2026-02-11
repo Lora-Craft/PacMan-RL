@@ -18,8 +18,9 @@ class PMAlpha(nn.Module):
     First CNN test model for PacMan project
     2592 * 256 = 663552 parameters
     Small 2 layer model for first run
+    Actor and Value heads for model are in 2 separate classes 
+    to match Torchrl PPO import expectations
     """
-
     def __init__(self, num_actions=5):
         super().__init__()
         # PRE RESIZE (224, 240, 3) 224 height, 240 width, 3 RGB input channels 
@@ -43,14 +44,6 @@ class PMAlpha(nn.Module):
         self.fc = nn.Linear(2592, 256) # 32 * 9 * 9 = 2592
 
         self.activation3 = nn.ReLU()
-
-        self.policy_head = nn.Linear(256, num_actions)
-        self.value_head = nn.Linear(256, 1)
-
-        _orthogonal_init(self)
-        nn.init.orthogonal_(self.policy_head.weight, gain=0.01)
-        nn.init.orthogonal_(self.value_head.weight, gain=1.0)
-
     
     def forward(self, x):
         x = self.conv1(x)
@@ -60,9 +53,39 @@ class PMAlpha(nn.Module):
         x = self.flatten(x)
         x = self.fc(x)
         x = self.activation3(x)
-        return self.policy_head(x), self.value_head(x)
+        return x
 
-        
+class PMPolicy(nn.Module):
+    """
+    Actor head for model
+    Takes features from PMAlpha and outputs action logits
+    """
+    def __init__(self, backbone, num_actions=5):
+        super().__init__()
+        self.backbone = backbone
+        self.policy_head = nn.Linear(256, num_actions)
+        nn.init.orthogonal_(self.policy_head.weight, gain=0.01)
+        nn.init.constant_(self.policy_head.bias, 0)
+    
+    def forward(self, x):
+        features = self.backbone(x)
+        return self.policy_head(features)
+
+class PMValue(nn.Module):
+    """
+    Critic head for model 
+    Takes features from PMAlpha and outputs state value as scalar
+    """
+    def __init__(self, backbone):
+        super().__init__()
+        self.backbone = backbone
+        self.value_head = nn.Linear(256, 1)
+        nn.init.orthogonal_(self.value_head.weight, gain=1.0)
+        nn.init.constant_(self.value_head.bias, 0)
+    
+    def forward(self, x):
+        features = self.backbone(x)
+        return self.value_head(features)
 
         
         
