@@ -28,12 +28,12 @@ class PMAlpha(nn.Module):
         self.conv1 = nn.Conv2d(in_channels=3, out_channels=16, kernel_size=8, stride=4)
         #PRE RESIZE h=55, w=59
         # POST RESIZE h=20, w=20
-        self.activation1 = nn.ReLU()
+        self.activation1 = nn.SiLU()
 
         self.conv2 = nn.Conv2d(in_channels=16, out_channels=32, kernel_size=4, stride=2)
         #PRE RESIZE h=26, w=28
         # POST RESIZE h=9, w=9
-        self.activation2 = nn.ReLU()
+        self.activation2 = nn.SiLU()
 
         #self.conv3 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=2, stride=1)
         #PRE RESIZE h=25, w=27
@@ -43,7 +43,7 @@ class PMAlpha(nn.Module):
 
         self.fc = nn.Linear(2592, 256) # 32 * 9 * 9 = 2592
 
-        self.activation3 = nn.ReLU()
+        self.activation3 = nn.SiLU()
     
     def forward(self, x):
         x = self.conv1(x)
