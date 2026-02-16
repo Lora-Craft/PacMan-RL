@@ -50,13 +50,6 @@ def make_env(
 
     return transformed_env
 
-
-#tensordict = test.reset()
-#print(f"obs space: {test.observation_space}")
-#print(f"obs shape: {test.observation_space.shape}")
-# print("ACTION SPEC:", test.action_spec)
-#print(tensordict)
-
 if __name__ == "__main__":
     #small test to for model in environment
     test = make_env()
@@ -68,9 +61,6 @@ if __name__ == "__main__":
     tensordict = test.reset()
 
     while True:
-        #action = test.action_space.sample()
-        #tensordict = test.step(tensordict.set("action", action))
-
         obs = tensordict["pixels"]
         
         obs_batch = obs.unsqueeze(0) # adds batch dimensions for model
@@ -88,9 +78,6 @@ if __name__ == "__main__":
         reward = tensordict["next", "reward"]
         term = tensordict["next", "terminated"]
         trunc = tensordict["next", "truncated"]
-
-
-        #print(f"Action: {action}, Reward: {reward.item():.2f}, Value: {value.item():.4f}")
 
         if term or trunc:
             print("EPISODE ENDED")
