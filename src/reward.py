@@ -1,8 +1,8 @@
 import gymnasium as gym
 
 REWARD_CONFIG = { #add in other reward features here when u have decided
-    'score_reward': 0.5
-}
+    'score_reward': 1.0 #seems actual score is actually displayed score /10?
+}                       #look into this further may need to adjust?
 
 class ScoreReward:
     """
@@ -14,6 +14,10 @@ class ScoreReward:
         self.prev_score = 0
     
     def reset(self, info):
+        """
+        Info dictionary contains variabls from the game
+        and their RAM address. Provided by retro. 
+        """
         self.prev_score = info.get('score', 0)
     
     def calculate(self, info):
@@ -27,8 +31,8 @@ class ScoreReward:
 class RewardWrapper(gym.Wrapper):
     """
     Wraps existing environment with defined reward.
-    Punishes loss of life
-    Maybe you reward cherries here? idk sleep on it 
+    Punishes loss of life (TBD)
+    Maybe you reward cherries here? idk sleep on it
     """
 
     def __init__(self, env):
