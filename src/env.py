@@ -13,6 +13,7 @@ from torchrl.envs.utils import step_mdp
 import torch as t
 from discretizer import Discretizer
 from model import PMAlpha, PMPolicy, PMValue
+from reward import RewardWrapper
 
 PACMAN_ACTIONS = [
     [],                 #No action
@@ -39,6 +40,8 @@ def make_env(
         )
     
     env = Discretizer(env, PACMAN_ACTIONS)
+
+    env = RewardWrapper(env)
 
     wrapped_env = GymWrapper(env)
     
