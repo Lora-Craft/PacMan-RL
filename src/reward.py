@@ -37,7 +37,7 @@ class DeathReward:
         self.penalty = REWARD_CONFIG['death_penalty']
         self.last_state = 3
     
-    def reset(self, info):
+    def reset(self, info): # check if you need to keep this to match API signature or if it can be removed 
         #self.last_state = info.get('lives', 0)
         pass
     
