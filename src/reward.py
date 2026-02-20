@@ -1,8 +1,10 @@
 import gymnasium as gym
 
 REWARD_CONFIG = { #add in other reward features here when u have decided
-    'score_reward': 1.0 #seems actual score is actually displayed score /10?
-}                       #look into this further may need to adjust?
+    'score_reward': 1.0, #In game score has a 0 hard-coded onto the end, actual score is thus 1/10th of displayed
+    'death_penalty': 5.0
+}             
+
 
 class ScoreReward:
     """
@@ -26,7 +28,32 @@ class ScoreReward:
         self.prev_score = curr_score
         return d_score * self.scale
 
+class DeathReward:
+    """
+    Punishes loss of life
+    """
 
+    def __init__(self):
+        self.penalty = REWARD_CONFIG['death_penalty']
+        self.last_state = 3
+    
+    def reset(self, info):
+        #self.last_state = info.get('lives', 0)
+        pass
+    
+    def calculate(self, info):
+        curr_state = info.get('lives', 0)
+        reward = 0.0
+
+        if curr_state < self.last_state:
+            reward += self.penalty
+            self.last_state = curr_state
+        
+        if curr_state == 0:
+            self.last_state = 3
+        #print(f"CURRENT STATE IS: {curr_state}")
+        #print(f"PREV STATE IS: {self.last_state}")
+        return reward
 
 class RewardWrapper(gym.Wrapper):
     """
@@ -40,6 +67,7 @@ class RewardWrapper(gym.Wrapper):
 
         self.components = {
             'score': ScoreReward(),
+            'lives': DeathReward(),
         }
     
     def reset(self, **kwargs):
@@ -53,8 +81,9 @@ class RewardWrapper(gym.Wrapper):
     def step(self, action):
         obs, reward, terminated, truncated, info = self.env.step(action)
 
-        shaped_reward = 0.0
+        shaped_reward = 0.0 #Look at this later
 
         shaped_reward += self.components['score'].calculate(info)
+        shaped_reward -= self.components['lives'].calculate(info)
 
         return obs, shaped_reward, terminated, truncated, info
