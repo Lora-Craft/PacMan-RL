@@ -21,13 +21,6 @@ from torchrl.envs import (
 
 from torchrl.envs.utils import check_env_specs
 
-is_fork = t.multiprocessing.get_start_method() == "fork"
-
-device = (
-    t.device(0)
-    if t.cuda.is_available and not is_fork
-    else t.device("cpu")
-)
 num_cells = 256
 lr = 3e-4
 max_grad_norm = 1.0
