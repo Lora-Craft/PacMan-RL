@@ -33,3 +33,27 @@ def _compute_stats(values, prefix):
         f"{prefix}/max": np.max(values),
         f"{prefix}/min": np.min(values),
     }
+
+def evaluate(policy_module, num_eps=3, render=False, device="cpu"):
+    """
+    Run for specified number of episodes on current policy
+    """
+    env = make_env(render=render)
+
+    results = [_run_episode(env, policy_module) for _ in range(num_eps)]
+    rewards, lengths = zip(*results)
+
+    env.close()
+
+    metrics = {
+        "mean_reward": np.mean(rewards),
+        "mean_length": np.mean(lengths),
+        "rewards": list(rewards),
+        "lengths": list(lengths),
+        "num_eps": num_eps,
+    }
+
+    metrics.update(_compute_stats(rewards, "eval/reward"))
+    metrics.update(_compute_stats(lengths, "eval/length"))
+
+    return metrics
