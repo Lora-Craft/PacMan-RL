@@ -47,4 +47,50 @@ def train(device=None):
         sampler=SamplerWithoutReplacement(),
     )
 
+    total_batches = HPARAMS["total_frames"] // HPARAMS["frames_per_batch"]
+    pbar = tqdm(total=total_batches, desc="Training", unit="batch")
 
+    for batch_idx, tdict_data in enumerate(collector):
+        #GAE
+        with t.no_grad():
+            advantage_module(tdict_data)
+        
+        adv = tdict_data["advantage"]
+        tdict_data["advantage"] = (adv - adv.mean()) / (adv.std() + 1e-8)
+
+        #PPO minibatch updates
+        replay_buffer.extend(tdict_data.reshape(-1)) #Flattens batch
+
+        for epoch in range(HPARAMS["n_epochs"]):
+            for minibatch in replay_buffer.sample(
+                batch_size=HPARAMS["sub_batch_size"]
+            ):
+                loss_vals = loss_module(minibatch.to(device))
+
+                loss = (
+                    loss_vals["loss_objective"]
+                    + loss_vals["loss_critic"]
+                    + loss_vals["loss_entropy"]
+                )
+
+                optimizer.zero_grad()
+                loss.backward()
+                t.nn.utils.clip_grad_norm_(
+                    loss_module.parameters(),
+                    HPARAMS["max_grad_norm"],
+                )
+                optimizer.step()
+    
+        done_mask = tdict_data["next", "done"]
+        ep_reward = tdict_data["next", "episode_reward"][done_mask]
+
+        frames_done = (batch_idx + 1) * HPARAMS["frames_per_batch"]
+
+        if len(ep_reward) > 0:
+            mean_reward = ep_reward.mean().item()
+            print(f"Batch: {batch_idx}")
+            print(f"Frames progress: {frames_done} / {HPARAMS["total_frames"]}")
+            print(f"Reward: {mean_reward}")
+    
+    collector.shutdown()
+    print("End of training")
