@@ -5,7 +5,7 @@ from tensordict.nn import TensorDictModule
 from torchrl.modules import ProbabilisticActor, ValueOperator
 from torchrl.objectives import ClipPPOLoss
 from torchrl.objectives.value import GAE
-from torch.distributions import Categorical
+from torch.distributions import OneHotCategorical
 
 from model import PMAlpha, PMPolicy, PMValue
 from env import make_env
@@ -54,7 +54,7 @@ def make_ppo_mods(device=device):
         module=actor_module,
         in_keys=["logits"],
         out_keys=["action"],
-        distribution_class=Categorical,
+        distribution_class=OneHotCategorical,
         return_log_prob=True,
     )
 

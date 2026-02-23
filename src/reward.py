@@ -2,7 +2,7 @@ import gymnasium as gym
 
 REWARD_CONFIG = { #add in other reward features here when u have decided
     'score_reward': 1.0, #In game score has a 0 hard-coded onto the end, actual score is thus 1/10th of displayed
-    'death_penalty': 5.0
+    'death_penalty': 2.0
 }             
 
 

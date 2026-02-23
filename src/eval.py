@@ -1,5 +1,6 @@
 import numpy as np
 import torch as t
+from pathlib import Path
 from torchrl.envs.utils import step_mdp
 from env import make_env
 
@@ -21,7 +22,7 @@ def _run_episode(env, policy_module):
         done = tensordict["next", "done"].any().item()
 
         if done:
-            ep_length = tensordict["next", "done"].any().item()
+            ep_length = tensordict["next", "step_count"].item()
             return ep_reward, ep_length
 
         tensordict = step_mdp(tensordict)
@@ -34,11 +35,18 @@ def _compute_stats(values, prefix):
         f"{prefix}/min": np.min(values),
     }
 
-def evaluate(policy_module, num_eps=3, render=False, device="cpu"):
+def evaluate(policy_module, num_eps=3, render=False, record_dir=None, device="cpu"):
     """
     Run for specified number of episodes on current policy
     """
-    env = make_env(render=render)
+    record = record_dir is not None 
+
+    if record:
+        record_path = Path(record_dir)
+        record_path.mkdir(parents=True, exist_ok=True)
+        record_dir = str(record_path)
+
+    env = make_env(render=render, record=record, record_dir=record_dir)
 
     results = [_run_episode(env, policy_module) for _ in range(num_eps)]
     rewards, lengths = zip(*results)

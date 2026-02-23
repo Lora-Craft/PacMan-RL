@@ -7,6 +7,7 @@ from tqdm import tqdm
 
 from env import make_env
 from ppo import make_ppo_mods, HPARAMS
+from eval import evaluate
 
 def train(device=None):
     """
@@ -91,6 +92,14 @@ def train(device=None):
             print(f"Batch: {batch_idx}")
             print(f"Frames progress: {frames_done} / {HPARAMS['total_frames']}")
             print(f"Reward: {mean_reward}")
+        
+        if batch_idx % 50 == 0:
+            metrics = evaluate(
+                policy_module,
+                num_eps=3,
+                record_dir=f"recordings/eval_batch_{batch_idx}",
+            )
+            print(f"Eval reward: {metrics['mean_reward']}")
     
     collector.shutdown()
     print("End of training")
