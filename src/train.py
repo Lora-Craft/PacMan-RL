@@ -89,7 +89,7 @@ def train(device=None):
         if len(ep_reward) > 0:
             mean_reward = ep_reward.mean().item()
             print(f"Batch: {batch_idx}")
-            print(f"Frames progress: {frames_done} / {HPARAMS["total_frames"]}")
+            print(f"Frames progress: {frames_done} / {HPARAMS['total_frames']}")
             print(f"Reward: {mean_reward}")
     
     collector.shutdown()

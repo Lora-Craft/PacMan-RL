@@ -40,10 +40,10 @@ def make_ppo_mods(device=device):
     """
 
     #Shared model backbone for both policy and value head
-    backbone = PMAlpha(num_actions=N_ACTIONS).to(device)
+    backbone = PMAlpha(num_actions=N_ACTIONS)
 
     #Actor head
-    actor_net = PMPolicy(backbone, num_actions=N_ACTIONS)
+    actor_net = PMPolicy(backbone, num_actions=N_ACTIONS).to(device)
     actor_module = TensorDictModule(
         actor_net,
         in_keys=["pixels"],
@@ -59,7 +59,7 @@ def make_ppo_mods(device=device):
     )
 
     #Value head
-    value_net = PMValue(backbone)
+    value_net = PMValue(backbone).to(device)
     value_module = ValueOperator(
         module=value_net,
         in_keys=["pixels"],
@@ -77,7 +77,7 @@ def make_ppo_mods(device=device):
         critic_network=value_module,
         clip_epsilon=HPARAMS["clip_epsilon"],
         entropy_bonus=True,
-        entropy_coef=HPARAMS["entropy_eps"],
+        entropy_coeff=HPARAMS["entropy_eps"],
     )
 
     optimizer = t.optim.Adam(loss_module.parameters(), lr=HPARAMS["lr"])

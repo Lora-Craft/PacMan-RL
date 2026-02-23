@@ -46,6 +46,10 @@ class PMAlpha(nn.Module):
         self.activation3 = nn.SiLU()
     
     def forward(self, x):
+        squeezed = False 
+        if x.dim() == 3:
+            x = x.unsqueeze(0)
+            squeezed = True
         x = self.conv1(x)
         x = self.activation1(x)
         x = self.conv2(x)
@@ -53,6 +57,8 @@ class PMAlpha(nn.Module):
         x = self.flatten(x)
         x = self.fc(x)
         x = self.activation3(x)
+        if squeezed:
+            x = x.squeeze(0)
         return x
 
 class PMPolicy(nn.Module):
