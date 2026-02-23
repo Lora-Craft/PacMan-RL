@@ -44,6 +44,8 @@ class PMAlpha(nn.Module):
         self.fc = nn.Linear(2592, 256) # 32 * 9 * 9 = 2592
 
         self.activation3 = nn.SiLU()
+
+        _orthogonal_init(self)
     
     def forward(self, x):
         squeezed = False 

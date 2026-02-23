@@ -100,6 +100,9 @@ def train(device=None):
                 record_dir=f"recordings/eval_batch_{batch_idx}",
             )
             print(f"Eval reward: {metrics['mean_reward']}")
+        
+        pbar.update(1)
     
+    pbar.close()
     collector.shutdown()
     print("End of training")
