@@ -35,7 +35,7 @@ def get_torch_compatible_actions(actions, num_actions=5):
 def make_env(render=False, record=False, record_dir=None):
     env = retro.make(
             'PacManNamco-Nes',
-            render_mode='human' if render else 'rgb_array',
+            render_mode='human' #if render else 'rgb_array',
         )
     
     env = Discretizer(env, PACMAN_ACTIONS)
