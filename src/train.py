@@ -1,4 +1,5 @@
 import torch as t
+import os
 from torchrl.collectors import SyncDataCollector
 from torchrl.data.replay_buffers import ReplayBuffer
 from torchrl.data.replay_buffers.samplers import SamplerWithoutReplacement
@@ -9,11 +10,38 @@ from env import make_env
 from ppo import make_ppo_mods, HPARAMS
 from eval import evaluate
 
-def get_checkpoint_info(checkpoint_path):
-    checkpoint = t.load(checkpoint_path, map_location='cpu')
-    #config_dict 
+def save_checkpoint(mods, batch_idx, checkpoint_dir="checkpoints"):
+    os.makedirs(checkpoint_dir, exist_ok=True)
 
-def train(device=None):
+    checkpoint = {
+        "backbone_state": mods["backbone"].state_dict(),
+        "policy_state": mods["policy_module"].state_dict(),
+        "value_state": mods["value_module"].state_dict(),
+        "optimizer_state": mods["optimizer"].state_dict(),
+        "batch_idx": batch_idx,
+        "hparams": HPARAMS,
+    }
+
+    model_path = os.path.join(checkpoint_dir, f"checkpoint_batch_{batch_idx}.pt")
+    t.save(checkpoint, model_path)
+    print(f"Checkpoint saved: {model_path}")
+
+    return model_path
+
+def load_checkpoint(checkpoint_path, mods, device="cpu"):
+    checkpoint = t.load(checkpoint_path, map_location=device)
+
+    mods["backbone"].load_state_dict(checkpoint["backbone_state"])
+    mods["policy_module"].load_state_dict(checkpoint["policy_state"])
+    mods["value_module"].load_state_dict(checkpoint["value_state"])
+    mods["optimizer"].load_state_dict(checkpoint["optimizer_state"])
+
+    start_batch = checkpoint["batch_idx"] + 1
+    print(f"Loaded from batch: {checkpoint['batch_idx']}")
+
+    return start_batch
+
+def train(device=None, checkpoint_path=None):
     """
     Training loop using PPO
     """
@@ -33,7 +61,14 @@ def train(device=None):
     loss_module = mods["loss_module"]
     optimizer = mods["optimizer"]
 
+    start_batch = 0
+    if checkpoint_path is not None:
+        start_batch = load_checkpoint(checkpoint_path, mods, device=device)
+
     env = make_env()
+
+    #Adjusts training frames for checkpoint
+    remaining_frames = HPARAMS["total_frames"] - (start_batch * HPARAMS["frames_per_batch"])
 
     #Handles rollout with loop of observe - act - step - store
     #Runs policy_module on current obs to choose action, step in env with the action, stores obs action reward etc, continues until batch has reached frames_per_batch
@@ -55,7 +90,11 @@ def train(device=None):
     total_batches = HPARAMS["total_frames"] // HPARAMS["frames_per_batch"]
     pbar = tqdm(total=total_batches, desc="Training", unit="batch")
 
+    checkpoint_freq = 50 #Checkpoint after 50 batches
+
     for batch_idx, tdict_data in enumerate(collector):
+        actual_batch = start_batch + batch_idx
+
         #GAE
         with t.no_grad():
             advantage_module(tdict_data)
@@ -89,13 +128,17 @@ def train(device=None):
         done_mask = tdict_data["next", "done"]
         ep_reward = tdict_data["next", "episode_reward"][done_mask]
 
-        frames_done = (batch_idx + 1) * HPARAMS["frames_per_batch"]
+        frames_done = (actual_batch + 1) * HPARAMS["frames_per_batch"]
 
         if len(ep_reward) > 0:
             mean_reward = ep_reward.mean().item()
-            print(f"Batch: {batch_idx}")
+            print(f"Batch: {actual_batch}")
             print(f"Frames progress: {frames_done} / {HPARAMS['total_frames']}")
             print(f"Reward: {mean_reward}")
+
+        #Checkpoint conditional
+        if actual_batch % checkpoint_freq == 0 and actual_batch > 0:
+            save_checkpoint(mods, actual_batch)
         
         #if batch_idx % 50 == 0:
         #    metrics = evaluate(
@@ -107,6 +150,9 @@ def train(device=None):
         
         pbar.update(1)
     
+    #Save final checkpoint
+    save_checkpoint(mods, actual_batch, checkpoint_dir="checkpoints")
+
     pbar.close()
     collector.shutdown()
     print("End of training")

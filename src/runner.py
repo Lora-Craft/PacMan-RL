@@ -17,10 +17,10 @@ def _get_device():
     return device
 
 
-def run_training():
+def run_training(checkpoint_path=None):
     device = _get_device()
     print(f"Device: {device}")
-    train(device=device)
+    train(device=device, checkpoint_path=checkpoint_path)
 
 if __name__ == "__main__":
     run_training()
