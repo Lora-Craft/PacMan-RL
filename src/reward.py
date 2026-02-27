@@ -2,7 +2,8 @@ import gymnasium as gym
 
 REWARD_CONFIG = { #add in other reward features here when u have decided
     'score_reward': 1.0, #In game score has a 0 hard-coded onto the end, actual score is thus 1/10th of displayed
-    'death_penalty': 2.0
+    'death_penalty': 2.0,
+    'step_penalty': 0.002, #Penalises each step to force agent to find reward
 }             
 
 
@@ -38,21 +39,23 @@ class DeathReward:
         self.last_state = 3
     
     def reset(self, info): # check if you need to keep this to match API signature or if it can be removed 
-        #self.last_state = info.get('lives', 0)
-        pass
+        self.last_state = info.get('lives', 3)
     
     def calculate(self, info):
         curr_state = info.get('lives', 0)
         reward = 0.0
-
-        if curr_state < self.last_state:
-            reward += self.penalty
-            self.last_state = curr_state
         
-        if curr_state == 0:
-            self.last_state = 3
+        if self.last_state is not None and curr_state < self.last_state:
+            reward += self.penalty
+        #if curr_state < self.last_state:
+        #    reward -= self.penalty
+        #    self.last_state = curr_state
+        #
+        #if curr_state == 0:
+        #    self.last_state = 3
         #print(f"CURRENT STATE IS: {curr_state}")
         #print(f"PREV STATE IS: {self.last_state}")
+        self.last_state = curr_state
         return reward
 
 class RewardWrapper(gym.Wrapper):
@@ -65,6 +68,7 @@ class RewardWrapper(gym.Wrapper):
     def __init__(self, env):
         super().__init__(env)
 
+        self.step_penalty = REWARD_CONFIG['step_penalty']
         self.components = {
             'score': ScoreReward(),
             'lives': DeathReward(),
@@ -85,5 +89,6 @@ class RewardWrapper(gym.Wrapper):
 
         shaped_reward += self.components['score'].calculate(info)
         shaped_reward -= self.components['lives'].calculate(info)
+        shaped_reward -= self.step_penalty
 
         return obs, shaped_reward, terminated, truncated, info

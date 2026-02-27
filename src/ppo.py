@@ -13,7 +13,7 @@ from env import make_env
 HPARAMS = {
     "lr": 3e-4,
     "max_grad_norm": 1.0,
-    "frames_per_batch": 4096,
+    "frames_per_batch": 2048,
     "total_frames": 2_000_000,
     "sub_batch_size": 64,
     "n_epochs": 3,

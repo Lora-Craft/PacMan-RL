@@ -9,6 +9,10 @@ from env import make_env
 from ppo import make_ppo_mods, HPARAMS
 from eval import evaluate
 
+def get_checkpoint_info(checkpoint_path):
+    checkpoint = t.load(checkpoint_path, map_location='cpu')
+    #config_dict 
+
 def train(device=None):
     """
     Training loop using PPO
