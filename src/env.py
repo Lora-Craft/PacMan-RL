@@ -8,7 +8,7 @@ from torchrl.envs import (
     RewardSum,
 )
 from gymnasium.wrappers import RecordVideo
-from torchrl.envs.transforms import Resize, Compose, ToTensorImage
+from torchrl.envs.transforms import Resize, Compose, ToTensorImage, GrayScale
 from torchvision.transforms import InterpolationMode
 from torchrl.envs.utils import step_mdp
 import torch as t
@@ -35,7 +35,7 @@ def get_torch_compatible_actions(actions, num_actions=5):
 def make_env(render=False, record=False, record_dir=None):
     env = retro.make(
             'PacManNamco-Nes',
-            render_mode='human' if render else 'rgb_array',
+            render_mode='human' #if render else 'rgb_array',
         )
     
     env = Discretizer(env, PACMAN_ACTIONS)
@@ -56,6 +56,7 @@ def make_env(render=False, record=False, record_dir=None):
         Resize(84, 84, interpolation=InterpolationMode.NEAREST),
         #ObservationNorm(in_keys=["observation"]),
         #DoubleToFloat(),
+        GrayScale(),
         StepCounter(),
         RewardSum(),
     ]))

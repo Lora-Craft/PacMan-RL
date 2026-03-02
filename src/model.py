@@ -1,6 +1,7 @@
 import torch as t
 import torch.nn as nn
 import numpy as np
+from einops import repeat
 
 def _orthogonal_init(module, gain=np.sqrt(2)):
     """
@@ -12,6 +13,24 @@ def _orthogonal_init(module, gain=np.sqrt(2)):
 
             if mod.bias is not None:
                 nn.init.constant_(mod.bias, 0)
+
+def coord_conv(x):
+    """
+    Coordinate Convolution to break translational symmetry.
+    Position of objects in environment required for model learning.
+    """
+    b, c, h, w = x.shape
+
+    #Creates grid of coordinates
+    y_range = t.linspace(-1, 1, h, device=x.device, dtype=x.dtype)
+    x_range = t.linspace(-1, 1, w, device=x.device, dtype=x.dtype)
+    y_coords = repeat(y_range, 'h -> h w', w=w)
+    x_coords = repeat(x_range, 'w -> h w', h=h)
+
+    coords = t.stack([x_coords, y_coords], dim=0)
+    coords = repeat(coords, 'c h w -> b c h w', b=b)
+
+    return t.cat([x, coords], dim=1)
 
 class PMAlpha(nn.Module):
     """
@@ -25,6 +44,7 @@ class PMAlpha(nn.Module):
         super().__init__()
         # PRE RESIZE (224, 240, 3) 224 height, 240 width, 3 RGB input channels 
         # POST RESIZE (3, 84, 84) 3 RGB input channels, 84 height/width
+        #Grayscaled changes to (1, 84, 84)
         self.conv1 = nn.Conv2d(in_channels=3, out_channels=16, kernel_size=8, stride=4)
         #PRE RESIZE h=55, w=59
         # POST RESIZE h=20, w=20
@@ -52,7 +72,8 @@ class PMAlpha(nn.Module):
         if x.dim() == 3:
             x = x.unsqueeze(0)
             squeezed = True
-        x = self.conv1(x)
+        x = coord_conv(x)
+        x = self.conv1(x) #(B, 1, 84, 84) -> (B, 3, 84, 84)
         x = self.activation1(x)
         x = self.conv2(x)
         x = self.activation2(x)
