@@ -32,6 +32,36 @@ def coord_conv(x):
 
     return t.cat([x, coords], dim=1)
 
+class SpatialAttention(nn.Module):
+    """
+    Each h, w position treated as a token of a vector of num channels 
+    """
+    def __init__(self, channels, num_heads=4):
+        super().__init__()
+
+        self.attn = nn.MultiheadAttention(
+            embed_dim=channels, #32
+            num_heads=num_heads, #32 / 8 = 4
+            batch_first=True,
+        )
+
+        self.norm = nn.LayerNorm(channels)
+    
+    def forward(self, x):
+        """
+        Forward pass with attention
+        """
+        b, c, h, w = x.shape
+
+        tokens = x.flatten(2).permute(0, 2, 1)
+
+        #Each tokens begins as same tensor but are converted into Query, Key, Value tensors
+        attn_out, _ = self.attn(tokens, tokens, tokens)
+
+        out = self.norm(tokens + attn_out)
+
+        return out.permute(0, 2, 1).view(b, c, h, w)
+
 class PMAlpha(nn.Module):
     """
     First CNN test model for PacMan project
@@ -59,6 +89,8 @@ class PMAlpha(nn.Module):
         #PRE RESIZE h=25, w=27
         #self.activation3 = nn.ReLU()
 
+        self.attention = SpatialAttention(channels=32, num_heads=4)
+
         self.flatten = nn.Flatten() 
 
         self.fc = nn.Linear(2592, 256) # 32 * 9 * 9 = 2592
@@ -77,6 +109,7 @@ class PMAlpha(nn.Module):
         x = self.activation1(x)
         x = self.conv2(x)
         x = self.activation2(x)
+        x = self.attention(x)
         x = self.flatten(x)
         x = self.fc(x)
         x = self.activation3(x)
