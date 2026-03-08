@@ -32,6 +32,46 @@ def coord_conv(x):
 
     return t.cat([x, coords], dim=1)
 
+class SqExBlock(nn.Module):
+    """
+    Squeeze and excitation block implementation
+    Each channels data squeezed into single value into a vector 
+    with size of number of channels.
+    Vector then fed into feed-forward nn
+    """
+    def __init__(self, channels, reduction=4):
+        super().__init__()
+        mid = max(channels // reduction, 4)
+        self.squeeze = nn.AdaptiveAvgPool2d(1)
+        self.excitation = nn.Sequential(
+            nn.Linear(channels, mid),
+            nn.SiLU(),
+            nn.Linear(mid, channels),
+            nn.Sigmoid(),
+        )
+    
+    def forward(self, x):
+        b, c, _, _ = x.shape
+        scale = self.squeeze(x).view(b, c) #Spatial data for each channel
+        scale = self.excitation(scale).view(b, c, 1, 1) 
+        return x * scale
+
+class ResBlock(nn.Module):
+    def __init__(self, channels, se_reduction=4):
+        super().__init__()
+        self.conv1 = nn.Conv2d(channels, channels, kernel_size=3, padding=1)
+        self.activation1 = nn.SiLU()
+        self.conv2 = nn.Conv2d(channels, channels, kernel_size=3, padding=1)
+        self.activation2 = nn.SiLU()
+        self.se = SqExBlock(channels, reduction=se_reduction)
+    
+    def forward(self, x):
+        residual = x
+        Y = self.activation1(self.conv1(x))
+        Y = self.conv2(Y)
+        Y = self.se(Y)
+        return self.activation2(Y + residual)
+
 class SpatialAttention(nn.Module):
     """
     Each h, w position treated as a token of a vector of num channels 
@@ -75,6 +115,7 @@ class PMAlpha(nn.Module):
         # PRE RESIZE (224, 240, 3) 224 height, 240 width, 3 RGB input channels 
         # POST RESIZE (3, 84, 84) 3 RGB input channels, 84 height/width
         #Grayscaled changes to (1, 84, 84)
+        #coord_conv changes adds coords so changed to (3, 84, 84)
         self.conv1 = nn.Conv2d(in_channels=3, out_channels=16, kernel_size=8, stride=4)
         #PRE RESIZE h=55, w=59
         # POST RESIZE h=20, w=20
@@ -88,6 +129,9 @@ class PMAlpha(nn.Module):
         #self.conv3 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=2, stride=1)
         #PRE RESIZE h=25, w=27
         #self.activation3 = nn.ReLU()
+
+        self.res1 = ResBlock(32, se_reduction=4)
+        self.res2 = ResBlock(32, se_reduction=4)
 
         self.attention = SpatialAttention(channels=32, num_heads=4)
 
@@ -109,6 +153,8 @@ class PMAlpha(nn.Module):
         x = self.activation1(x)
         x = self.conv2(x)
         x = self.activation2(x)
+        x = self.res1
+        x = self.res2
         x = self.attention(x)
         x = self.flatten(x)
         x = self.fc(x)
