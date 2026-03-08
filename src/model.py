@@ -153,8 +153,8 @@ class PMAlpha(nn.Module):
         x = self.activation1(x)
         x = self.conv2(x)
         x = self.activation2(x)
-        x = self.res1
-        x = self.res2
+        x = self.res1(x)
+        x = self.res2(x)
         x = self.attention(x)
         x = self.flatten(x)
         x = self.fc(x)
