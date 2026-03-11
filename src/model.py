@@ -116,30 +116,34 @@ class PMAlpha(nn.Module):
         # POST RESIZE (3, 84, 84) 3 RGB input channels, 84 height/width
         #Grayscaled changes to (1, 84, 84)
         #coord_conv changes adds coords so changed to (3, 84, 84)
-        self.conv1 = nn.Conv2d(in_channels=3, out_channels=16, kernel_size=8, stride=4)
+        self.conv1 = nn.Conv2d(in_channels=3, out_channels=16, kernel_size=8, stride=4) #(16, 20, 20)
         #PRE RESIZE h=55, w=59
         # POST RESIZE h=20, w=20
         self.activation1 = nn.SiLU()
 
-        self.conv2 = nn.Conv2d(in_channels=16, out_channels=32, kernel_size=4, stride=2)
+        self.conv2 = nn.Conv2d(in_channels=16, out_channels=32, kernel_size=4, stride=2) #(32, 9, 9)
         #PRE RESIZE h=26, w=28
         # POST RESIZE h=9, w=9
         self.activation2 = nn.SiLU()
 
-        #self.conv3 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=2, stride=1)
+        self.conv3 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=1, padding=1) #(64, 9, 9)
         #PRE RESIZE h=25, w=27
-        #self.activation3 = nn.ReLU()
+        self.activation3 = nn.SiLU()
 
-        self.res1 = ResBlock(32, se_reduction=4)
-        self.res2 = ResBlock(32, se_reduction=4)
+        self.res1 = ResBlock(64, se_reduction=4)
+        self.res2 = ResBlock(64, se_reduction=4)
 
-        self.attention = SpatialAttention(channels=32, num_heads=4)
+        self.attention = SpatialAttention(channels=64, num_heads=8)
+
+        self.pool = nn.AdaptiveAvgPool2d(7) #(64, 7, 7)
 
         self.flatten = nn.Flatten() 
 
-        self.fc = nn.Linear(2592, 256) # 32 * 9 * 9 = 2592
+        self.fc1 = nn.Linear(3136, 256) # 64 * 7 * 7 = 3136
+        self.fc1_activation = nn.SiLU()
 
-        self.activation3 = nn.SiLU()
+        self.fc2 = nn.Linear(256, 256)
+        self.fc2_activation = nn.SiLU()
 
         _orthogonal_init(self)
     
@@ -153,12 +157,17 @@ class PMAlpha(nn.Module):
         x = self.activation1(x)
         x = self.conv2(x)
         x = self.activation2(x)
+        x = self.conv3(x)
+        x = self.activation3(x)
         x = self.res1(x)
         x = self.res2(x)
         x = self.attention(x)
+        x = self.pool(x)
         x = self.flatten(x)
-        x = self.fc(x)
-        x = self.activation3(x)
+        x = self.fc1(x)
+        x = self.fc1_activation(x)
+        x = self.fc2(x)
+        x = self.fc2_activation(x)
         if squeezed:
             x = x.squeeze(0)
         return x
@@ -194,6 +203,3 @@ class PMValue(nn.Module):
     def forward(self, x):
         features = self.backbone(x)
         return self.value_head(features)
-
-        
-        
